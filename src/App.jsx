@@ -705,7 +705,7 @@ export default function App() {
       <header className="px-4 pt-5 pb-3 max-w-4xl mx-auto">
         <div className="flex items-end justify-between">
           <h1 className="text-xl font-black tracking-wide" style={{ color: C.ink }}>
-            就活ノート<span className="text-xs ml-2 font-bold" style={{ color: C.inkSoft }}>2027卒</span>
+            就活ノート
           </h1>
           <div className="flex items-center gap-3">
             <div className="text-xs font-bold" style={{ color: C.inkSoft }}>
