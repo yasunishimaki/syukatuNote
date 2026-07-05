@@ -668,6 +668,11 @@ export default function App() {
   const [notes, setNotes] = useState(() => load("notes", initNotes));
   const [view, setView] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
+  const [lastExport, setLastExport] = useState(() => {
+    const v = localStorage.getItem("shukatsu-last-export");
+    return v ? Number(v) : null;
+  });
+  const [backupDismissed, setBackupDismissed] = useState(false);
 
   // 変更があるたびにブラウザへ自動保存
   useEffect(() => { localStorage.setItem("shukatsu-companies", JSON.stringify(companies)); }, [companies]);
@@ -680,7 +685,18 @@ export default function App() {
     a.href = URL.createObjectURL(blob);
     a.download = `shukatsu-note-${todayStr()}.json`;
     a.click();
+    const now = Date.now();
+    localStorage.setItem("shukatsu-last-export", String(now));
+    setLastExport(now);
+    setBackupDismissed(false);
   };
+
+  const hasData = companies.length > 0 || events.length > 0 || notes.length > 0;
+  const daysSinceExport = lastExport ? Math.floor((Date.now() - lastExport) / 86400000) : null;
+  const showBackupWarning = hasData && !backupDismissed && (lastExport === null || daysSinceExport >= 7);
+  const backupMessage = lastExport === null
+    ? "⚠️ まだ一度もバックアップされていません。「書き出し」でJSONファイルを保存してください。"
+    : `⚠️ 前回のバックアップから${daysSinceExport}日経過しています。「書き出し」を推奨します。`;
   const importData = file => {
     const r = new FileReader();
     r.onload = () => {
@@ -728,6 +744,23 @@ export default function App() {
           ))}
         </nav>
       </header>
+      {showBackupWarning && (
+        <div className="px-4 max-w-4xl mx-auto mb-3">
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs font-bold"
+               style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>
+            <span>{backupMessage}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={exportData}
+                      className="px-2 py-1 rounded-md"
+                      style={{ background: "#B91C1C", color: "#fff" }}>今すぐ書き出し</button>
+              <button onClick={() => setBackupDismissed(true)}
+                      aria-label="閉じる"
+                      className="px-2 py-1 rounded-md"
+                      style={{ color: "#B91C1C" }}>×</button>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="px-4 pb-10 max-w-4xl mx-auto">
         {view === "dashboard" && <Dashboard companies={companies} events={events} openCompany={openCompany} />}
         {view === "companies" && <Companies companies={companies} setCompanies={setCompanies} events={events} notes={notes} setNotes={setNotes} selectedId={selectedId} setSelectedId={setSelectedId} />}
