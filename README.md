@@ -4,6 +4,7 @@
 
 - データは**使う人それぞれのブラウザ内**に自動保存されます(サーバーには送信されません)
 - ヘッダーの「書き出し」でバックアップ(JSON)、「読み込み」で復元・機種変更時の引き継ぎができます
+- 「☁️ Drive保存 / Drive復元」で**本人のGoogleドライブ**にスプレッドシートとしてバックアップできます(要初期設定: [GOOGLE_DRIVE_SETUP.md](GOOGLE_DRIVE_SETUP.md))
 
 ## 公開手順(GitHub Pages)
 
@@ -32,7 +33,9 @@ npm run build    # 公開用ファイルを dist/ に生成
 ```
 index.html                    ページの入れ物(Tailwind CSSをCDNで読込)
 src/App.jsx                   アプリ本体(画面・機能はすべてここ)
+src/driveBackup.js            Googleドライブ連携(バックアップ・復元)
 src/main.jsx                  Reactの起動処理
+GOOGLE_DRIVE_SETUP.md         Drive連携の初期設定手順
 vite.config.js                ビルド設定
 .github/workflows/deploy.yml  push時の自動公開設定
 ```

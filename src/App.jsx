@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveToDrive, restoreFromDrive } from "./driveBackup";
 
 // ================= デザイントークン =================
 const C = {
@@ -673,6 +674,7 @@ export default function App() {
     return v ? Number(v) : null;
   });
   const [backupDismissed, setBackupDismissed] = useState(false);
+  const [driveBusy, setDriveBusy] = useState(null); // "save" | "restore" | null
 
   // 変更があるたびにブラウザへ自動保存
   useEffect(() => { localStorage.setItem("shukatsu-companies", JSON.stringify(companies)); }, [companies]);
@@ -691,12 +693,44 @@ export default function App() {
     setBackupDismissed(false);
   };
 
+  const markBackedUp = () => {
+    const now = Date.now();
+    localStorage.setItem("shukatsu-last-export", String(now));
+    setLastExport(now);
+    setBackupDismissed(false);
+  };
+
+  const saveDrive = async () => {
+    setDriveBusy("save");
+    try {
+      await saveToDrive({ companies, events, notes });
+      markBackedUp();
+      alert("Googleドライブに保存しました。\nDriveの「就活ノート バックアップ」からいつでも確認できます。");
+    } catch (e) {
+      alert("Driveへの保存に失敗しました。\n" + e.message);
+    } finally { setDriveBusy(null); }
+  };
+
+  const restoreDrive = async () => {
+    if (hasData && !window.confirm("Driveのバックアップで、今この端末にあるデータを上書きします。よろしいですか?")) return;
+    setDriveBusy("restore");
+    try {
+      const { data, modifiedTime } = await restoreFromDrive();
+      if (data.companies) setCompanies(data.companies);
+      if (data.events) setEvents(data.events);
+      if (data.notes) setNotes(data.notes);
+      alert(`Driveから復元しました。\n(バックアップ日時: ${modifiedTime ? new Date(modifiedTime).toLocaleString("ja-JP") : "不明"})`);
+    } catch (e) {
+      alert("Driveからの復元に失敗しました。\n" + e.message);
+    } finally { setDriveBusy(null); }
+  };
+
   const hasData = companies.length > 0 || events.length > 0 || notes.length > 0;
   const daysSinceExport = lastExport ? Math.floor((Date.now() - lastExport) / 86400000) : null;
   const showBackupWarning = hasData && !backupDismissed && (lastExport === null || daysSinceExport >= 7);
   const backupMessage = lastExport === null
-    ? "⚠️ まだ一度もバックアップされていません。「書き出し」でJSONファイルを保存してください。"
-    : `⚠️ 前回のバックアップから${daysSinceExport}日経過しています。「書き出し」を推奨します。`;
+    ? "⚠️ まだ一度もバックアップされていません。「Drive保存」または「書き出し」でデータを保存してください。"
+    : `⚠️ 前回のバックアップから${daysSinceExport}日経過しています。「Drive保存」または「書き出し」を推奨します。`;
   const importData = file => {
     const r = new FileReader();
     r.onload = () => {
@@ -723,10 +757,16 @@ export default function App() {
           <h1 className="text-xl font-black tracking-wide" style={{ color: C.ink }}>
             就活ノート
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <div className="text-xs font-bold" style={{ color: C.inkSoft }}>
               {TODAY.getFullYear()}/{TODAY.getMonth() + 1}/{TODAY.getDate()}({["日", "月", "火", "水", "木", "金", "土"][TODAY.getDay()]})
             </div>
+            <button onClick={saveDrive} disabled={driveBusy !== null} className="text-xs font-bold px-2 py-1 rounded-lg disabled:opacity-50" style={{ border: `1px solid ${C.line}`, color: C.inkSoft, background: C.card }}>
+              {driveBusy === "save" ? "保存中…" : "☁️ Drive保存"}
+            </button>
+            <button onClick={restoreDrive} disabled={driveBusy !== null} className="text-xs font-bold px-2 py-1 rounded-lg disabled:opacity-50" style={{ border: `1px solid ${C.line}`, color: C.inkSoft, background: C.card }}>
+              {driveBusy === "restore" ? "復元中…" : "☁️ Drive復元"}
+            </button>
             <button onClick={exportData} className="text-xs font-bold px-2 py-1 rounded-lg" style={{ border: `1px solid ${C.line}`, color: C.inkSoft, background: C.card }}>書き出し</button>
             <label className="text-xs font-bold px-2 py-1 rounded-lg cursor-pointer" style={{ border: `1px solid ${C.line}`, color: C.inkSoft, background: C.card }}>
               読み込み
@@ -750,6 +790,9 @@ export default function App() {
                style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5" }}>
             <span>{backupMessage}</span>
             <div className="flex items-center gap-2 shrink-0">
+              <button onClick={saveDrive} disabled={driveBusy !== null}
+                      className="px-2 py-1 rounded-md disabled:opacity-50"
+                      style={{ background: "#B91C1C", color: "#fff" }}>{driveBusy === "save" ? "保存中…" : "Driveへ保存"}</button>
               <button onClick={exportData}
                       className="px-2 py-1 rounded-md"
                       style={{ background: "#B91C1C", color: "#fff" }}>今すぐ書き出し</button>
