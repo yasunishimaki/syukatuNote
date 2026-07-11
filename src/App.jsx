@@ -780,6 +780,12 @@ function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
         <p>ただし裏返すと、<b>端末やブラウザのデータが消えるとノートも消えます</b>。だからバックアップが大切です。</p>
       </HelpCard>
 
+      <HelpCard icon="🔒" title="プライバシーと大切な注意">
+        <p>あなたのデータは<b>この端末と、あなた自身のGoogleドライブにのみ</b>保存されます。運営者があなたのデータにアクセスすることは一切できません。</p>
+        <p>そのぶん、<b>万一データが消えても運営者は復旧できません</b>。「Drive保存」を定期的に行い、自分のデータは自分で守ってください。</p>
+        <p>⚠️ 特にiPhone(Safari)には、<b>7日間使わなかったサイトのデータを自動削除する</b>仕様があります。iPhoneで使う方は、こまめなDrive保存を強くおすすめします。</p>
+      </HelpCard>
+
       <HelpCard icon="☁️" title="Driveに保存する(おすすめ・設定不要)">
         <p>あなた自身のGoogleドライブに、スプレッドシート「就活ノート バックアップ」として保存します。事前の設定は不要で、Googleアカウントがあればすぐ使えます。</p>
         <div className="space-y-1.5 pt-1">
