@@ -34,7 +34,7 @@
 2. アプリケーションの種類: 「**ウェブアプリケーション**」
 3. **承認済みのJavaScript生成元**に次の2つを追加:
    - `http://localhost:5173` （ローカルテスト用）
-   - `https://プロジェクト名.pages.dev` （Cloudflare Pagesの公開URL。パスは付けない）
+   - `https://syukatunote.pages.dev` （Cloudflare Pagesの公開URL。パスは付けない）
    - 独自ドメインを設定したら、そのURL（例: `https://syukatu-note.com`）もここに追加する
 4. 作成すると「クライアントID」（`〜.apps.googleusercontent.com` で終わる文字列）が表示されるのでコピー
 
