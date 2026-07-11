@@ -657,6 +657,84 @@ function NotesView({ notes, setNotes, companies }) {
   );
 }
 
+// ================= 使い方(バックアップガイド) =================
+const HelpCard = ({ icon, title, children }) => (
+  <div className="rounded-2xl p-4" style={{ background: C.card, border: `1px solid ${C.line}` }}>
+    <div className="font-bold text-sm mb-2" style={{ color: C.ink }}>{icon} {title}</div>
+    <div className="text-xs leading-relaxed space-y-2" style={{ color: C.inkSoft }}>{children}</div>
+  </div>
+);
+
+const Step = ({ n, children }) => (
+  <div className="flex gap-2 items-start">
+    <span className="shrink-0 w-5 h-5 rounded-full text-white text-xs font-bold flex items-center justify-center" style={{ background: C.ink }}>{n}</span>
+    <span>{children}</span>
+  </div>
+);
+
+function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
+  const faqs = [
+    ["アプリの運営者や他の人に、私のデータは見えますか?",
+      "見えません。データはあなたの端末のブラウザ内と、あなた自身のGoogleドライブにだけ保存されます。サーバーには一切送信されないため、運営者もデータに触れられない仕組みです。"],
+    ["Googleの許可画面では、何を許可することになりますか?",
+      "「このアプリで作成したファイルの表示・管理」だけです。就活ノートが作ったバックアップファイル以外(Drive内の他のファイルやメール等)には、一切アクセスできません。"],
+    ["Driveのスプレッドシートを直接書き換えたら、アプリに反映されますか?",
+      "反映されません。スプレッドシートは「見るため」のコピーです。編集してもアプリ側は変わらず、次の保存で上書きされます。また「_backup」シートは復元用データなので削除・編集しないでください。"],
+    ["どのくらいの頻度で保存すればいいですか?",
+      "週1回が目安です。最後のバックアップから7日たつと画面上部にお知らせが出るので、そのタイミングで「Drive保存」を押せばOKです。"],
+    ["Googleアカウントを使いたくない場合は?",
+      "ヘッダーの「書き出し」でJSONファイルとして端末に保存できます。復元するときは「読み込み」でそのファイルを選んでください。"],
+    ["ブラウザの履歴・サイトデータを削除するとどうなりますか?",
+      "この端末のデータは消えますが、Driveに保存してあれば「Drive復元」で元に戻せます。履歴削除の前には必ずバックアップしてください。"],
+  ];
+  return (
+    <div className="space-y-4">
+      <SectionTitle>データの保存とバックアップ</SectionTitle>
+
+      <HelpCard icon="💾" title="あなたのデータはどこにある?">
+        <p>入力した内容は、<b>この端末のブラウザの中</b>に自動保存されています。サーバーには送信されないので、あなた以外の誰にも見えません。</p>
+        <p>ただし裏返すと、<b>端末やブラウザのデータが消えるとノートも消えます</b>。だからバックアップが大切です。</p>
+      </HelpCard>
+
+      <HelpCard icon="☁️" title="Driveに保存する(おすすめ・設定不要)">
+        <p>あなた自身のGoogleドライブに、スプレッドシート「就活ノート バックアップ」として保存します。事前の設定は不要で、Googleアカウントがあればすぐ使えます。</p>
+        <div className="space-y-1.5 pt-1">
+          <Step n="1">画面右上の「☁️ Drive保存」を押す</Step>
+          <Step n="2">Googleのログイン画面が出たら、自分のアカウントを選ぶ</Step>
+          <Step n="3">「このアプリで作成したファイルの表示・管理」を許可する</Step>
+          <Step n="4">「保存しました」と出たら完了。2回目からは同じファイルが上書き更新されます</Step>
+        </div>
+        <p className="pt-1">保存したスプレッドシートはDriveでいつでも開けて、企業リスト・ES・予定・メモが表の形で確認できます(スマホからの見返しにも便利)。</p>
+        <button onClick={onSaveDrive} disabled={driveBusy !== null}
+          className="mt-1 px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50" style={{ background: C.ink }}>
+          {driveBusy === "save" ? "保存中…" : "☁️ 今すぐDriveに保存する"}
+        </button>
+      </HelpCard>
+
+      <HelpCard icon="🔄" title="復元する(機種変更・データが消えたとき)">
+        <div className="space-y-1.5">
+          <Step n="1">新しい端末(またはデータが消えた端末)でこのアプリを開く</Step>
+          <Step n="2">「☁️ Drive復元」を押して、<b>保存したときと同じGoogleアカウント</b>でログインする</Step>
+          <Step n="3">確認メッセージで OK を押すと、最後に保存した内容がそのまま戻ります</Step>
+        </div>
+      </HelpCard>
+
+      <HelpCard icon="📄" title="ファイルで書き出す(もう1つの方法)">
+        <p>「書き出し」を押すと、全データがJSONファイルとして端末にダウンロードされます。「読み込み」でそのファイルを選べば復元できます。Googleアカウントを使いたくない場合や、二重のバックアップとして併用してください。</p>
+      </HelpCard>
+
+      <SectionTitle>よくある質問</SectionTitle>
+      <div className="space-y-3">
+        {faqs.map(([q, a]) => (
+          <HelpCard key={q} icon="Q." title={q}>
+            <p>{a}</p>
+          </HelpCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ================= アプリ本体 =================
 const load = (key, fallback) => {
   try { const v = localStorage.getItem("shukatsu-" + key); return v ? JSON.parse(v) : fallback; }
@@ -747,7 +825,7 @@ export default function App() {
   const openCompany = id => { setSelectedId(id); setView("companies"); };
 
   const tabs = [
-    ["dashboard", "🏠 ダッシュボード"], ["companies", "🏢 企業"], ["calendar", "📅 カレンダー"], ["es", "✍️ ES"], ["notes", "📝 メモ"],
+    ["dashboard", "🏠 ダッシュボード"], ["companies", "🏢 企業"], ["calendar", "📅 カレンダー"], ["es", "✍️ ES"], ["notes", "📝 メモ"], ["help", "❓ 使い方"],
   ];
 
   return (
@@ -810,6 +888,7 @@ export default function App() {
         {view === "calendar" && <CalendarView events={events} setEvents={setEvents} companies={companies} />}
         {view === "es" && <ESOverview companies={companies} openCompany={openCompany} />}
         {view === "notes" && <NotesView notes={notes} setNotes={setNotes} companies={companies} />}
+        {view === "help" && <HelpView onSaveDrive={saveDrive} onRestoreDrive={restoreDrive} driveBusy={driveBusy} />}
       </main>
     </div>
   );
