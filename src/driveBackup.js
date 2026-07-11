@@ -2,7 +2,7 @@
 // 使い方: GOOGLE_DRIVE_SETUP.md の手順で OAuth クライアントIDを作成し、下に貼り付ける。
 // クライアントIDは公開しても問題ない識別子です(秘密鍵ではありません)。
 // 例: const GOOGLE_CLIENT_ID = "123456789-abc123.apps.googleusercontent.com";
-const GOOGLE_CLIENT_ID = "";
+const GOOGLE_CLIENT_ID = "711895586401-07qq0vvm5rausqq410b7cu450becipfc.apps.googleusercontent.com";
 
 // このアプリが作成したファイルだけ読み書きできる最小権限(Drive全体は見えない)
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
