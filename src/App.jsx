@@ -130,19 +130,53 @@ const SectionTitle = ({ children }) => (
   </h2>
 );
 
+// URLにプロンプトを埋め込める上限の目安。超えたらコピー+貼り付け方式に切り替える
+const AI_URL_LIMIT = 6000;
+const AI_TARGETS = [
+  { name: "ChatGPT", buildUrl: t => `https://chatgpt.com/?q=${encodeURIComponent(t)}`, home: "https://chatgpt.com/" },
+  { name: "Claude", buildUrl: t => `https://claude.ai/new?q=${encodeURIComponent(t)}`, home: "https://claude.ai/new" },
+  { name: "Gemini", buildUrl: null, home: "https://gemini.google.com/app" }, // プロンプト埋め込みURL非対応
+];
+
 function PromptModal({ title, text, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState("");
+  const copyText = async () => {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch { return false; /* 手動コピー用にテキストは表示済み */ }
+  };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }
-    catch { /* 手動コピー用にテキストは表示済み */ }
+    if (await copyText()) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+  };
+  const openAI = async ai => {
+    await copyText(); // どのAIでも、貼り付けで済むよう先にコピーしておく
+    const prefilled = ai.buildUrl && encodeURIComponent(text).length <= AI_URL_LIMIT;
+    window.open(prefilled ? ai.buildUrl(text) : ai.home, "_blank", "noopener");
+    setNotice(prefilled
+      ? `${ai.name}を開きました。もし質問が入力されていなければ、入力欄に貼り付け(Ctrl+V)してください。`
+      : `プロンプトをコピーして${ai.name}を開きました。入力欄に貼り付け(Ctrl+V)して送信してください。`);
   };
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ background: "rgba(30,42,74,0.4)" }} onClick={onClose}>
       <div className="rounded-2xl p-5 w-full max-w-lg space-y-3 max-h-full overflow-y-auto" style={{ background: C.card }} onClick={e => e.stopPropagation()}>
         <div className="font-black" style={{ color: C.ink }}>🤖 {title}</div>
         <p className="text-xs leading-relaxed" style={{ color: C.inkSoft }}>
-          下のプロンプトをコピーして、ChatGPT・Claude・Geminiなどの生成AIに貼り付けてください。返ってきた回答は、このノートのメモやESの下書きに保存しておきましょう。
+          ふだん使っているAI(無料プランでOK)を選ぶと、下のプロンプトを持ってAIが開きます。返ってきた回答は、このノートのメモやESの下書きに保存しておきましょう。
         </p>
+        <div className="flex gap-2 flex-wrap">
+          {AI_TARGETS.map(ai => (
+            <button key={ai.name} onClick={() => openAI(ai)}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white whitespace-nowrap"
+              style={{ background: C.ink }}>
+              {ai.name}で開く
+            </button>
+          ))}
+        </div>
+        {notice && (
+          <p className="text-xs leading-relaxed px-3 py-2 rounded-lg" style={{ background: "#F0F6EF", color: C.green, border: `1px solid ${C.green}55` }}>
+            ✓ {notice}
+          </p>
+        )}
         <textarea readOnly value={text} rows={12}
           className="w-full text-xs rounded-lg p-3 outline-none resize-y leading-relaxed"
           style={{ background: "#F8F9FB", border: `1px solid ${C.line}`, color: C.ink }}
@@ -721,6 +755,12 @@ function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
 
       <HelpCard icon="📄" title="ファイルで書き出す(もう1つの方法)">
         <p>「書き出し」を押すと、全データがJSONファイルとして端末にダウンロードされます。「読み込み」でそのファイルを選べば復元できます。Googleアカウントを使いたくない場合や、二重のバックアップとして併用してください。</p>
+      </HelpCard>
+
+      <SectionTitle>AI添削・企業研究</SectionTitle>
+      <HelpCard icon="🤖" title="AIとの連携はどうなっている?">
+        <p>企業ページの「AIで企業研究」やESの「AI添削」は、<b>あなた自身がふだん使っているAI</b>(ChatGPT・Claude・Geminiなど、無料プランでOK)に依頼する仕組みです。このアプリがAIと直接通信したり、データを送ったりすることはありません。</p>
+        <p>「〇〇で開く」ボタンを押すと、添削・調査の依頼文(プロンプト)を持ってそのAIのページが開きます。入力欄が空だった場合は、依頼文はコピー済みなので貼り付け(Ctrl+V)して送信してください。</p>
       </HelpCard>
 
       <SectionTitle>よくある質問</SectionTitle>
