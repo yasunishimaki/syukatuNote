@@ -311,7 +311,7 @@ function Dashboard({ companies, events, openCompany }) {
 }
 
 // ================= 企業一覧・詳細 =================
-function Companies({ companies, setCompanies, events, notes, setNotes, selectedId, setSelectedId }) {
+function Companies({ companies, setCompanies, events, setEvents, notes, setNotes, selectedId, setSelectedId }) {
   const [name, setName] = useState("");
   const selected = companies.find(c => c.id === selectedId);
 
@@ -323,7 +323,16 @@ function Companies({ companies, setCompanies, events, notes, setNotes, selectedI
   };
   const update = (id, patch) => setCompanies(companies.map(c => c.id === id ? { ...c, ...patch } : c));
 
-  if (selected) return <CompanyDetail company={selected} update={p => update(selected.id, p)} back={() => setSelectedId(null)} events={events.filter(e => e.companyId === selected.id)} notes={notes} setNotes={setNotes} />;
+  const removeCompany = () => {
+    if (!window.confirm(`「${selected.name}」を削除します。\n企業研究・ES・この企業に紐づく予定も一緒に削除されます(メモは「企業なし」のメモとして残ります)。\nよろしいですか?`)) return;
+    setCompanies(companies.filter(c => c.id !== selected.id));
+    setEvents(events.filter(e => e.companyId !== selected.id));
+    setNotes(notes.map(n => n.companyId === selected.id ? { ...n, companyId: null } : n));
+    setSelectedId(null);
+  };
+  const removeEvent = id => setEvents(events.filter(e => e.id !== id));
+
+  if (selected) return <CompanyDetail company={selected} update={p => update(selected.id, p)} back={() => setSelectedId(null)} events={events.filter(e => e.companyId === selected.id)} notes={notes} setNotes={setNotes} onDelete={removeCompany} onDeleteEvent={removeEvent} />;
 
   return (
     <div className="space-y-4">
@@ -355,7 +364,7 @@ function Companies({ companies, setCompanies, events, notes, setNotes, selectedI
   );
 }
 
-function CompanyDetail({ company, update, back, events, notes, setNotes }) {
+function CompanyDetail({ company, update, back, events, notes, setNotes, onDelete, onDeleteEvent }) {
   const [tab, setTab] = useState("research");
   const [editingNote, setEditingNote] = useState(null);
   const [aiPrompt, setAiPrompt] = useState(null);
@@ -370,6 +379,10 @@ function CompanyDetail({ company, update, back, events, notes, setNotes }) {
 
   const addES = () => update({ esList: [...company.esList, { id: Date.now(), question: "設問を入力", limit: 400, status: "下書き", draft: "" }] });
   const updateES = (id, patch) => update({ esList: company.esList.map(e => e.id === id ? { ...e, ...patch } : e) });
+  const removeES = id => {
+    if (!window.confirm("この設問と下書きを削除します。よろしいですか?")) return;
+    update({ esList: company.esList.filter(e => e.id !== id) });
+  };
 
   const fields = [
     { k: "business", label: "事業内容・強み", ph: "何をしている会社か、競合との違いは？" },
@@ -461,6 +474,7 @@ function CompanyDetail({ company, update, back, events, notes, setNotes }) {
                   <div className="text-xs font-bold" style={{ color: es.draft.length > es.limit ? C.red : C.inkSoft }}>
                     {es.draft.length} / {es.limit} 字
                   </div>
+                  <button onClick={() => removeES(es.id)} className="text-xs font-bold" style={{ color: C.red }}>削除</button>
                 </div>
               </div>
             </div>
@@ -477,10 +491,17 @@ function CompanyDetail({ company, update, back, events, notes, setNotes }) {
               <Chip text={e.type} color={EVENT_TYPES[e.type]} />
               <div className="text-sm font-bold" style={{ color: C.ink }}>{e.title}</div>
               <div className="text-xs ml-auto" style={{ color: C.inkSoft }}>{e.date} {e.time}</div>
+              <button onClick={() => window.confirm(`「${e.title}」を削除しますか?`) && onDeleteEvent(e.id)}
+                className="text-xs font-bold shrink-0" style={{ color: C.red }}>削除</button>
             </div>
           ))}
         </div>
       )}
+      <div className="pt-4 text-center" style={{ borderTop: `1px solid ${C.line}` }}>
+        <button onClick={onDelete} className="text-xs font-bold px-3 py-2 rounded-lg" style={{ color: C.red, border: `1px solid ${C.red}55` }}>
+          🗑 この企業を削除
+        </button>
+      </div>
       {aiPrompt && <PromptModal title={aiPrompt.title} text={aiPrompt.text} onClose={() => setAiPrompt(null)} />}
     </div>
   );
@@ -527,7 +548,10 @@ function CalendarView({ events, setEvents, companies }) {
                 <div className="text-xs font-bold" style={{ color: isToday ? C.ink : C.inkSoft }}>{d}</div>
                 <div className="space-y-0.5 mt-0.5">
                   {evs.slice(0, 3).map(e => (
-                    <div key={e.id} className="text-xs truncate rounded px-1 font-bold text-white" style={{ background: EVENT_TYPES[e.type] }}>{e.title}</div>
+                    <div key={e.id}
+                      onClick={ev => { ev.stopPropagation(); if (window.confirm(`「${e.title}」(${e.date} ${e.time})を削除しますか?`)) setEvents(events.filter(x => x.id !== e.id)); }}
+                      title="タップで削除"
+                      className="text-xs truncate rounded px-1 font-bold text-white" style={{ background: EVENT_TYPES[e.type] }}>{e.title}</div>
                   ))}
                   {evs.length > 3 && <div className="text-xs" style={{ color: C.inkSoft }}>+{evs.length - 3}</div>}
                 </div>
@@ -716,6 +740,8 @@ function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
       "反映されません。スプレッドシートは「見るため」のコピーです。編集してもアプリ側は変わらず、次の保存で上書きされます。また「_backup」シートは復元用データなので削除・編集しないでください。"],
     ["どのくらいの頻度で保存すればいいですか?",
       "週1回が目安です。最後のバックアップから7日たつと画面上部にお知らせが出るので、そのタイミングで「Drive保存」を押せばOKです。"],
+    ["最初から入っているサンプルデータを消したい / データを削除したい",
+      "初回に表示される青いバナーの「サンプルを全部削除」で、まっさらな状態から始められます。個別に消す場合は、企業ページの一番下「この企業を削除」、ESや予定・メモの「削除」ボタン、カレンダー上の予定はタップで削除できます。"],
     ["Googleアカウントを使いたくない場合は?",
       "ヘッダーの「書き出し」でJSONファイルとして端末に保存できます。復元するときは「読み込み」でそのファイルを選んでください。"],
     ["ブラウザの履歴・サイトデータを削除するとどうなりますか?",
@@ -793,6 +819,22 @@ export default function App() {
   });
   const [backupDismissed, setBackupDismissed] = useState(false);
   const [driveBusy, setDriveBusy] = useState(null); // "save" | "restore" | null
+  // 初回訪問(保存データなし)ではサンプルデータが表示される。バナーで案内し、ワンタッチで削除できるようにする
+  const [sampleMode, setSampleMode] = useState(() => {
+    if (localStorage.getItem("shukatsu-sample") === "1") return true;
+    if (!localStorage.getItem("shukatsu-companies") && !localStorage.getItem("shukatsu-events") && !localStorage.getItem("shukatsu-notes")) {
+      localStorage.setItem("shukatsu-sample", "1");
+      return true;
+    }
+    return false;
+  });
+  const clearSample = () => {
+    if (!window.confirm("いま表示されているデータをすべて削除して、まっさらな状態から始めます。よろしいですか?")) return;
+    setCompanies([]); setEvents([]); setNotes([]);
+    localStorage.removeItem("shukatsu-sample");
+    setSampleMode(false);
+  };
+  const dismissSample = () => { localStorage.removeItem("shukatsu-sample"); setSampleMode(false); };
 
   // 変更があるたびにブラウザへ自動保存
   useEffect(() => { localStorage.setItem("shukatsu-companies", JSON.stringify(companies)); }, [companies]);
@@ -845,7 +887,7 @@ export default function App() {
 
   const hasData = companies.length > 0 || events.length > 0 || notes.length > 0;
   const daysSinceExport = lastExport ? Math.floor((Date.now() - lastExport) / 86400000) : null;
-  const showBackupWarning = hasData && !backupDismissed && (lastExport === null || daysSinceExport >= 7);
+  const showBackupWarning = hasData && !sampleMode && !backupDismissed && (lastExport === null || daysSinceExport >= 7);
   const backupMessage = lastExport === null
     ? "⚠️ まだ一度もバックアップされていません。「Drive保存」または「書き出し」でデータを保存してください。"
     : `⚠️ 前回のバックアップから${daysSinceExport}日経過しています。「Drive保存」または「書き出し」を推奨します。`;
@@ -902,6 +944,23 @@ export default function App() {
           ))}
         </nav>
       </header>
+      {sampleMode && (
+        <div className="px-4 max-w-4xl mx-auto mb-3">
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs font-bold"
+               style={{ background: "#EFF4FE", color: C.blue, border: `1px solid ${C.blue}55` }}>
+            <span>👋 これは使い方がわかる<b>サンプルデータ</b>です。自分の就活データで始めるときは削除してください。</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={clearSample}
+                      className="px-2 py-1 rounded-md text-white"
+                      style={{ background: C.blue }}>サンプルを全部削除</button>
+              <button onClick={dismissSample}
+                      aria-label="閉じる"
+                      className="px-2 py-1 rounded-md"
+                      style={{ color: C.blue }}>×</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showBackupWarning && (
         <div className="px-4 max-w-4xl mx-auto mb-3">
           <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs font-bold"
@@ -924,7 +983,7 @@ export default function App() {
       )}
       <main className="px-4 pb-10 max-w-4xl mx-auto">
         {view === "dashboard" && <Dashboard companies={companies} events={events} openCompany={openCompany} />}
-        {view === "companies" && <Companies companies={companies} setCompanies={setCompanies} events={events} notes={notes} setNotes={setNotes} selectedId={selectedId} setSelectedId={setSelectedId} />}
+        {view === "companies" && <Companies companies={companies} setCompanies={setCompanies} events={events} setEvents={setEvents} notes={notes} setNotes={setNotes} selectedId={selectedId} setSelectedId={setSelectedId} />}
         {view === "calendar" && <CalendarView events={events} setEvents={setEvents} companies={companies} />}
         {view === "es" && <ESOverview companies={companies} openCompany={openCompany} />}
         {view === "notes" && <NotesView notes={notes} setNotes={setNotes} companies={companies} />}
