@@ -511,6 +511,7 @@ function CompanyDetail({ company, update, back, events, notes, setNotes, onDelet
 function CalendarView({ events, setEvents, companies }) {
   const [ym, setYm] = useState({ y: TODAY.getFullYear(), m: TODAY.getMonth() });
   const [form, setForm] = useState(null);
+  const [detail, setDetail] = useState(null); // タップした予定の詳細表示
 
   const first = new Date(ym.y, ym.m, 1);
   const startDow = first.getDay();
@@ -549,8 +550,7 @@ function CalendarView({ events, setEvents, companies }) {
                 <div className="space-y-0.5 mt-0.5">
                   {evs.slice(0, 3).map(e => (
                     <div key={e.id}
-                      onClick={ev => { ev.stopPropagation(); if (window.confirm(`「${e.title}」(${e.date} ${e.time})を削除しますか?`)) setEvents(events.filter(x => x.id !== e.id)); }}
-                      title="タップで削除"
+                      onClick={ev => { ev.stopPropagation(); setDetail(e); }}
                       className="text-xs truncate rounded px-1 font-bold text-white" style={{ background: EVENT_TYPES[e.type] }}>{e.title}</div>
                   ))}
                   {evs.length > 3 && <div className="text-xs" style={{ color: C.inkSoft }}>+{evs.length - 3}</div>}
@@ -584,6 +584,30 @@ function CalendarView({ events, setEvents, companies }) {
             <div className="flex gap-2 justify-end">
               <button onClick={() => setForm(null)} className="px-3 py-2 rounded-lg text-sm font-bold" style={{ color: C.inkSoft }}>キャンセル</button>
               <button onClick={save} className="px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: C.ink }}>保存する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detail && (
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ background: "rgba(30,42,74,0.4)" }} onClick={() => setDetail(null)}>
+          <div className="rounded-2xl p-5 w-full max-w-sm space-y-3" style={{ background: C.card }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Chip text={detail.type} color={EVENT_TYPES[detail.type]} />
+              {detail.companyId && (
+                <span className="text-xs font-bold" style={{ color: C.inkSoft }}>
+                  🏢 {companies.find(c => c.id === detail.companyId)?.name || "(削除された企業)"}
+                </span>
+              )}
+            </div>
+            <div className="font-black text-lg leading-snug" style={{ color: C.ink }}>{detail.title}</div>
+            <div className="text-sm font-bold" style={{ color: C.inkSoft }}>
+              📅 {detail.date}({["日", "月", "火", "水", "木", "金", "土"][new Date(detail.date + "T00:00:00").getDay()]}) {detail.time}
+            </div>
+            <div className="flex gap-2 justify-between items-center pt-1">
+              <button onClick={() => { if (window.confirm(`「${detail.title}」を削除しますか?`)) { setEvents(events.filter(x => x.id !== detail.id)); setDetail(null); } }}
+                className="px-3 py-2 rounded-lg text-sm font-bold" style={{ color: C.red, border: `1px solid ${C.red}55` }}>🗑 削除</button>
+              <button onClick={() => setDetail(null)} className="px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: C.ink }}>閉じる</button>
             </div>
           </div>
         </div>
@@ -741,7 +765,7 @@ function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
     ["どのくらいの頻度で保存すればいいですか?",
       "週1回が目安です。最後のバックアップから7日たつと画面上部にお知らせが出るので、そのタイミングで「Drive保存」を押せばOKです。"],
     ["最初から入っているサンプルデータを消したい / データを削除したい",
-      "初回に表示される青いバナーの「サンプルを全部削除」で、まっさらな状態から始められます。個別に消す場合は、企業ページの一番下「この企業を削除」、ESや予定・メモの「削除」ボタン、カレンダー上の予定はタップで削除できます。"],
+      "初回に表示される青いバナーの「サンプルを全部削除」で、まっさらな状態から始められます。個別に消す場合は、企業ページの一番下「この企業を削除」、ESや予定・メモの「削除」ボタン、カレンダー上の予定はタップして詳細を開くと削除できます。"],
     ["Googleアカウントを使いたくない場合は?",
       "ヘッダーの「書き出し」でJSONファイルとして端末に保存できます。復元するときは「読み込み」でそのファイルを選んでください。"],
     ["ブラウザの履歴・サイトデータを削除するとどうなりますか?",
