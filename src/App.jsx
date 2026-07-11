@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { saveToDrive, restoreFromDrive } from "./driveBackup";
+import { askGemini, getGeminiKey, setGeminiKey } from "./aiClient";
 
 // ================= デザイントークン =================
 const C = {
@@ -138,6 +139,83 @@ const AI_TARGETS = [
   { name: "Gemini", buildUrl: null, home: "https://gemini.google.com/app" }, // プロンプト埋め込みURL非対応
 ];
 
+// アプリ内でGeminiの回答を表示するセクション(BYOK: 利用者自身の無料APIキー)
+function GeminiSection({ prompt }) {
+  const [hasKey, setHasKey] = useState(() => !!getGeminiKey());
+  const [editingKey, setEditingKey] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+  const [answerCopied, setAnswerCopied] = useState(false);
+
+  const saveKey = () => {
+    if (!keyInput.trim()) return;
+    setGeminiKey(keyInput);
+    setHasKey(true); setEditingKey(false); setKeyInput("");
+  };
+  const removeKey = () => { setGeminiKey(""); setHasKey(false); setAnswer(""); setError(""); };
+  const run = async () => {
+    setBusy(true); setError(""); setAnswer("");
+    try { setAnswer(await askGemini(prompt)); }
+    catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+  const copyAnswer = async () => {
+    try { await navigator.clipboard.writeText(answer); setAnswerCopied(true); setTimeout(() => setAnswerCopied(false), 2000); } catch { /* 表示済み */ }
+  };
+
+  return (
+    <div className="rounded-xl p-3 space-y-2" style={{ background: "#F8F9FB", border: `1px solid ${C.line}` }}>
+      <div className="text-xs font-bold" style={{ color: C.ink }}>💎 アプリ内で回答を見る(Gemini)</div>
+      {(!hasKey || editingKey) ? (
+        <div className="space-y-2">
+          <p className="text-xs leading-relaxed" style={{ color: C.inkSoft }}>
+            自分のGemini APIキー(無料)を設定すると、この画面に回答を直接表示できます。
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline font-bold" style={{ color: C.blue }}>Google AI Studio</a>
+            を開いて「Create API key」→ コピーして下に貼り付けてください(クレジットカード登録は不要)。キーはこの端末の中にだけ保存されます。
+          </p>
+          <div className="flex gap-2">
+            <input type="password" value={keyInput} onChange={e => setKeyInput(e.target.value)}
+              placeholder="AIza… で始まるAPIキーを貼り付け"
+              className="flex-1 rounded-lg px-2 py-2 text-xs outline-none"
+              style={{ border: `1px solid ${C.line}`, color: C.ink, background: C.card }} />
+            <button onClick={saveKey} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ background: C.ink }}>保存</button>
+            {editingKey && <button onClick={() => setEditingKey(false)} className="px-2 text-xs font-bold" style={{ color: C.inkSoft }}>戻る</button>}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button onClick={run} disabled={busy}
+              className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-50" style={{ background: C.blue }}>
+              {busy ? "回答を待っています…" : "Geminiに依頼して回答を表示"}
+            </button>
+            <button onClick={() => setEditingKey(true)} className="text-xs font-bold underline" style={{ color: C.inkSoft }}>キーを変更</button>
+            <button onClick={removeKey} className="text-xs font-bold underline" style={{ color: C.inkSoft }}>キーを削除</button>
+          </div>
+          {error && (
+            <p className="text-xs leading-relaxed px-3 py-2 rounded-lg"
+               style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FCA5A5", whiteSpace: "pre-wrap" }}>{error}</p>
+          )}
+          {answer && (
+            <div className="space-y-1">
+              <div className="text-xs rounded-lg p-3 leading-relaxed overflow-y-auto"
+                   style={{ background: C.card, border: `1px solid ${C.line}`, color: C.ink, whiteSpace: "pre-wrap", maxHeight: "16rem" }}>{answer}</div>
+              <div className="flex justify-end">
+                <button onClick={copyAnswer} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                        style={{ background: answerCopied ? C.green : C.ink }}>
+                  {answerCopied ? "✓ コピーしました" : "回答をコピー"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PromptModal({ title, text, onClose }) {
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
@@ -177,6 +255,7 @@ function PromptModal({ title, text, onClose }) {
             ✓ {notice}
           </p>
         )}
+        <GeminiSection prompt={text} />
         <textarea readOnly value={text} rows={12}
           className="w-full text-xs rounded-lg p-3 outline-none resize-y leading-relaxed"
           style={{ background: "#F8F9FB", border: `1px solid ${C.line}`, color: C.ink }}
@@ -761,6 +840,7 @@ function HelpView({ onSaveDrive, onRestoreDrive, driveBusy }) {
       <HelpCard icon="🤖" title="AIとの連携はどうなっている?">
         <p>企業ページの「AIで企業研究」やESの「AI添削」は、<b>あなた自身がふだん使っているAI</b>(ChatGPT・Claude・Geminiなど、無料プランでOK)に依頼する仕組みです。このアプリがAIと直接通信したり、データを送ったりすることはありません。</p>
         <p>「〇〇で開く」ボタンを押すと、添削・調査の依頼文(プロンプト)を持ってそのAIのページが開きます。入力欄が空だった場合は、依頼文はコピー済みなので貼り付け(Ctrl+V)して送信してください。</p>
+        <p>さらに「💎 アプリ内で回答を見る(Gemini)」に自分のAPIキー(Google AI Studioで無料発行・クレジットカード不要)を設定すると、AIのページを開かずに<b>この画面の中で回答を読む</b>こともできます。キーはあなたの端末の中にだけ保存され、運営者には送信されません。</p>
       </HelpCard>
 
       <SectionTitle>よくある質問</SectionTitle>
